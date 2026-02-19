@@ -283,12 +283,21 @@ struct ImNodesEditorContext
     ImRect MiniMapContentScreenSpace;
     float  MiniMapScaling;
 
+    // Per-editor ImGui context for zooming
+    ImGuiContext* NodeEditorImgCtx;
+
     ImNodesEditorContext()
-        : Nodes(), Pins(), Links(), ZoomScale(1.f), Panning(0.f, 0.f), SelectedNodeIndices(),
-           SelectedLinkIndices(), SelectedNodeOffsets(), PrimaryNodeOffset(0.f, 0.f), ClickInteraction(),
-          MiniMapEnabled(false), MiniMapSizeFraction(0.0f), MiniMapNodeHoveringCallback(NULL),
-          MiniMapNodeHoveringCallbackUserData(NULL), MiniMapScaling(0.0f)
+        : Nodes(), Pins(), Links(), ZoomScale(1.f), Panning(0.f, 0.f), AutoPanningDelta(0.f, 0.f), SelectedNodeIndices(),
+          SelectedLinkIndices(), SelectedNodeOffsets(), PrimaryNodeOffset(0.f, 0.f), ClickInteraction(),
+          MiniMapEnabled(false), MiniMapLocation(ImNodesMiniMapLocation_BottomLeft), MiniMapSizeFraction(0.0f),
+          MiniMapNodeHoveringCallback(nullptr), MiniMapNodeHoveringCallbackUserData(nullptr), MiniMapScaling(0.0f)
     {
+        NodeEditorImgCtx = ImGui::CreateContext(ImGui::GetIO().Fonts);
+        NodeEditorImgCtx->IO.IniFilename = nullptr; // Disable ini file writing
+    }
+    ~ImNodesEditorContext()
+    {
+        ImGui::DestroyContext(NodeEditorImgCtx);
     }
 };
 
@@ -298,7 +307,6 @@ struct ImNodesContext
     ImNodesEditorContext* EditorCtx;
 
     // Canvas draw list and helper state
-    ImGuiContext* NodeEditorImgCtx;
     ImGuiContext* OriginalImgCtx;
     ImDrawList*   CanvasDrawList;
     ImGuiStorage  NodeIdxToSubmissionIdx;

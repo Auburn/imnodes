@@ -1718,10 +1718,6 @@ void EndPinAttribute()
 
 void Initialize(ImNodesContext* context)
 {
-    context->NodeEditorImgCtx = ImGui::CreateContext(ImGui::GetIO().Fonts);
-    context->NodeEditorImgCtx->IO.IniFilename = nullptr;
-    context->OriginalImgCtx = nullptr;
-
     context->CanvasOriginalOrigin = ImVec2(0.0f, 0.0f);
     context->CanvasOriginScreenSpace = ImVec2(0.0f, 0.0f);
     context->CanvasRectScreenSpace = ImRect(ImVec2(0.f, 0.f), ImVec2(0.f, 0.f));
@@ -1742,7 +1738,6 @@ void Initialize(ImNodesContext* context)
 void Shutdown(ImNodesContext* ctx)
 {
     EditorContextFree(ctx->DefaultEditorCtx);
-    ImGui::DestroyContext(ctx->NodeEditorImgCtx);
 }
 
 // [SECTION] minimap
@@ -2111,7 +2106,10 @@ void EditorContextMoveToNode(const int node_id)
     editor.Panning.y = -node.Origin.y;
 }
 
-ImGuiContext* GetNodeEditorImGuiContext() { return GImNodes->NodeEditorImgCtx; }
+ImGuiContext* GetNodeEditorImGuiContext() {
+    ImNodesEditorContext& editor = EditorContextGet();
+    return editor.NodeEditorImgCtx;
+}
 
 void SetImGuiContext(ImGuiContext* ctx) { ImGui::SetCurrentContext(ctx); }
 
@@ -2287,17 +2285,17 @@ void BeginNodeEditor()
 
         // Copy config settings in IO from main context, avoiding input fields
         memcpy(
-            (void*)&GImNodes->NodeEditorImgCtx->IO,
+            (void*)&editor.NodeEditorImgCtx->IO,
             (void*)&GImNodes->OriginalImgCtx->IO,
             offsetof(ImGuiIO, SetPlatformImeDataFn) +
                 sizeof(GImNodes->OriginalImgCtx->IO.SetPlatformImeDataFn));
 
-        GImNodes->NodeEditorImgCtx->IO.BackendPlatformUserData = nullptr;
-        GImNodes->NodeEditorImgCtx->IO.BackendRendererUserData = nullptr;
-        GImNodes->NodeEditorImgCtx->IO.IniFilename = nullptr;
-        GImNodes->NodeEditorImgCtx->IO.ConfigInputTrickleEventQueue = false;
-        GImNodes->NodeEditorImgCtx->IO.DisplaySize = ImMax(canvas_size / editor.ZoomScale, ImVec2(0, 0));
-        GImNodes->NodeEditorImgCtx->Style = GImNodes->OriginalImgCtx->Style;
+        editor.NodeEditorImgCtx->IO.BackendPlatformUserData = nullptr;
+        editor.NodeEditorImgCtx->IO.BackendRendererUserData = nullptr;
+        editor.NodeEditorImgCtx->IO.IniFilename = nullptr;
+        editor.NodeEditorImgCtx->IO.ConfigInputTrickleEventQueue = false;
+        editor.NodeEditorImgCtx->IO.DisplaySize = ImMax(canvas_size / editor.ZoomScale, ImVec2(0, 0));
+        editor.NodeEditorImgCtx->Style = GImNodes->OriginalImgCtx->Style;
 
         // Nav (tabbing) needs to be disabled otherwise it doubles up with the main context
         // not sure how to get this working correctly
@@ -2309,17 +2307,17 @@ void BeginNodeEditor()
 
         if (ImGui::IsWindowHovered())
         {
-            GImNodes->IsHovered = true;            
+            GImNodes->IsHovered = true;
         }
         else
         {
             windowFlags |= ImGuiWindowFlags_NoInputs;
-            GImNodes->NodeEditorImgCtx->IO.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+            editor.NodeEditorImgCtx->IO.ConfigFlags |= ImGuiConfigFlags_NoMouse;
         }
 
         // Copy IO events
-        GImNodes->NodeEditorImgCtx->InputEventsQueue = GImNodes->OriginalImgCtx->InputEventsTrail;
-        for (ImGuiInputEvent& e : GImNodes->NodeEditorImgCtx->InputEventsQueue)
+        editor.NodeEditorImgCtx->InputEventsQueue = GImNodes->OriginalImgCtx->InputEventsTrail;
+        for (ImGuiInputEvent& e : editor.NodeEditorImgCtx->InputEventsQueue)
         {
             if (e.Type == ImGuiInputEventType_MousePos)
             {
@@ -2329,8 +2327,7 @@ void BeginNodeEditor()
                     (e.MousePos.PosY - GImNodes->CanvasOriginalOrigin.y) / editor.ZoomScale;                
             }
         }
-
-        ImGui::SetCurrentContext(GImNodes->NodeEditorImgCtx);
+        ImGui::SetCurrentContext(editor.NodeEditorImgCtx);
         ImGui::NewFrame();
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -2525,11 +2522,10 @@ void EndNodeEditor()
 
     GImNodes->OriginalImgCtx->WantTextInputNextFrame = ImMax(
         GImNodes->OriginalImgCtx->WantTextInputNextFrame,
-        GImNodes->NodeEditorImgCtx->WantTextInputNextFrame);
-
+        editor.NodeEditorImgCtx->WantTextInputNextFrame);
     if (MouseInCanvas())
     {
-        GImNodes->OriginalImgCtx->MouseCursor = GImNodes->NodeEditorImgCtx->MouseCursor;
+        GImNodes->OriginalImgCtx->MouseCursor = editor.NodeEditorImgCtx->MouseCursor;
     }
 
     // End frame for zoom context
@@ -2933,7 +2929,7 @@ void EditorContextSetZoom(float zoom_scale, ImVec2 zoom_centering_pos)
     editor.Panning += zoom_centering_pos / new_zoom - zoom_centering_pos / editor.ZoomScale;
 
     // Fix mouse position
-    GImNodes->NodeEditorImgCtx->IO.MousePos *= editor.ZoomScale / new_zoom;
+    editor.NodeEditorImgCtx->IO.MousePos *= editor.ZoomScale / new_zoom;
 
     editor.ZoomScale = new_zoom;
 }
